@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { getmihomo_config } from './src/mihomo.js';
 import { getsingbox_config } from './src/singbox.js';
@@ -7,7 +8,8 @@ import * as utils from './src/utils.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
+const ADDR = process.env.ADDR || 'localhost';
+console.log(`Binding to address: ${ADDR}`);
 // 环境变量配置
 const config = {
     IMG: process.env.IMG || utils.backimg,
@@ -116,9 +118,9 @@ app.get('/health', (req, res) => {
 });
 
 // 启动服务器
-app.listen(PORT, () => {
+app.listen(PORT, ADDR, () => {
     console.log(`🚀 服务器启动成功！`);
-    console.log(`📍 监听地址: http://localhost:${PORT}`);
+    console.log(`📍 监听地址: http://${ADDR}:${PORT}`);
     console.log(`🌍 环境: ${process.env.NODE_ENV || 'development'}`);
     console.log(`⚙️  配置:`);
     console.log(`   - 后端转换: ${config.SUB}`);
