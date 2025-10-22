@@ -1,26 +1,24 @@
 {
-	"name": "cf-worker-mihomo",
-	"version": "1.2.2",
-	"private": true,
-	"license": "MIT",
-	"scripts": {
-		"deploy:workers": "wrangler deploy",
-		"deploy": "vercel --prod",
-		"dev:workers": "wrangler dev src/_worker.js --live-reload",
-		"dev": "vercel dev",
-		"build": "node esbuild.js",
-		"start:workers": "wrangler dev",
-		"start": "vercel dev",
-		"lint": "prettier --write \"**/*.js\""
-	},
-	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "0.8.47",
-		"esbuild": "^0.25.8",
-		"prettier": "^3.6.2",
-		"vercel": "^44.2.7",
-		"wrangler": "^4.22.0"
-	},
-	"dependencies": {
-		"yaml": "^2.8.0"
-	}
+  "name": "cf-worker-mihomo-server",
+  "version": "1.0.0",
+  "description": "Mihomo配置生成服务器版本",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node --watch server.js",
+    "build": "node esbuild.js",
+    "deploy": "vercel deploy",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.11"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
