@@ -1,0 +1,1 @@
+export const SOME_CONST_PROXY_JSON_LIST = []

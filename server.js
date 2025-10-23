@@ -64,7 +64,9 @@ app.get('/', async (req, res) => {
         };
 
         e.modes = utils.modes(e.sub, e.userAgent);
-
+        // console.log(`Processing request with modes: ${e.modes}`);
+        console.log(`URL: ${e.url}`);
+        console.log(`URLs: ${e.urls.join(', ')}`);
         // 处理逗号分隔的多个 URL
         if (e.urls.length === 1 && e.urls[0].includes(',')) {
             e.urls = e.urls[0].split(',').map((u) => u.trim());

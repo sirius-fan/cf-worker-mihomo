@@ -173,3 +173,5 @@ out
 
 
 script/*.log
+
+# src/myproxy.js

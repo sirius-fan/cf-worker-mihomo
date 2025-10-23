@@ -51,10 +51,102 @@ export function buildApiUrl(rawUrl, BASE_API, ua) {
         list: 'true',
         new_name: 'true',
     });
-    return `${BASE_API}/sub?${params}`;
+    return `${BASE_API}/?${params}`;
 }
+function getCallerNameFromStack() {
+  try {
+    throw new Error();
+  } catch (e) {
+    // e.stack 包含调用堆栈信息
+    // 堆栈格式因浏览器和环境（Node/浏览器）而异。
+    // 下面是一个简单的（可能不完全跨平台的）正则表达式示例，用于提取第二行（调用者）的函数名。
+
+    // 示例：e.stack 的格式可能像这样（在 Chrome/Node 中）：
+    // Error
+    //     at childFunction (file:///path/to/script.js:7:15)
+    //     at parentFunction (file:///path/to/script.js:14:3)
+    //     at <anonymous>:1:1
+
+    const stackLines = e.stack.split('\n');
+    // 第二行通常是 childFunction 内部的调用信息 (index 1 或 2，取决于环境)
+    // 第三行通常是调用者 parentFunction 的信息
+    if (stackLines.length >= 3) {
+      const callerLine = stackLines[2]; 
+      // 尝试匹配函数名，如 "at FunctionName (..." 或 "FunctionName@"
+      const match = callerLine.match(/at\s+([^(]+)\s+\(|(\w+)@/); 
+      if (match) {
+        // match[1] 或 match[2] 可能是函数名
+        return (match[1] && match[1].trim()) || match[2] || '匿名函数';
+      }
+    }
+    return '无法解析调用者';
+  }
+}
+
+function isBase64(str) {
+    if (typeof str !== 'string') {
+        return false;
+    }
+
+    // 检查是否为空字符串
+    if (str.length === 0) {
+        return false;
+    }
+
+    // 正则表达式解释：
+    // ^                                 // 字符串开始
+    // (?:[A-Za-z0-9+/]{4})* // 零个或多个由4个Base64字符组成的块
+    // (?:                               // 非捕获组，用于最后的块
+    //   [A-Za-z0-9+/]{2}== |           // 2个Base64字符 + 两个填充符 '=='
+    //   [A-Za-z0-9+/]{3}= |            // 3个Base64字符 + 一个填充符 '='
+    //   [A-Za-z0-9+/]{4}                // 4个Base64字符 (无填充)
+    // )?                                // 最后的块是可选的 (因为前面可能有零个块)
+    // $                                 // 字符串结束
+    const base64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})?$/;
+
+    return base64Regex.test(str);
+}
+
+// 处理多个 trojan URL
+function transferTrojanToClashMeta(trojanUrl) {
+    try {
+        const url = new URL(trojanUrl);
+        if (url.protocol !== 'trojan:') {
+            throw new Error('Invalid Trojan URL');
+        }
+
+        const name = decodeURIComponent(url.hash.slice(1)) || 'Unnamed Trojan Proxy';
+        const server = url.hostname;
+        const port = parseInt(url.port, 10);
+        const password = url.username;
+        const params = url.searchParams;
+
+        const clashMetaProxy = {
+            name: name,
+            type: 'trojan',
+            server: server,
+            port: port,
+            password: password,
+        };
+
+        if (params.get('sni')) {
+            clashMetaProxy.sni = params.get('sni');
+        }
+        if (params.get('allowInsecure') === '1') {
+            clashMetaProxy['skip-cert-verify'] = true;
+        }
+        clashMetaProxy.udp = true;
+        return clashMetaProxy;
+    } catch (error) {
+        console.error(`Error converting Trojan URL to Clash Meta format: ${error.message}`);
+        return null;
+    }
+}
+
 // 处理请求
 export async function fetchResponse(url, userAgent) {
+    console.log(`[${fetchResponse.name}]: Fetching response from ${url}`);
+    console.log(`[${fetchResponse.name}]: Called from function: ${getCallerNameFromStack()}`);
     if (!userAgent) {
         userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3';
     }
@@ -66,9 +158,15 @@ export async function fetchResponse(url, userAgent) {
                 'User-Agent': userAgent,
             },
         });
-    } catch {
-        return true;
+    } catch (error) {
+        // if (error instanceof HTTPParserError) {
+            // console.error(`[${fetchResponse.name}]: Detected HTTPParserError`);
+        // } else {
+            console.error(`[${fetchResponse.name}]: Error fetching response from ${url}`);
+            return true;
+        // }
     }
+    // console.log(`[${fetchResponse.name}]: Fetched response from ${url} with status ${response.status}`);
     // 直接使用 Object.fromEntries 转换 headers
     const headersObj = Object.fromEntries(response.headers.entries());
     // 替换非法 Content-Disposition 字段Add commentMore actions
@@ -77,17 +175,41 @@ export async function fetchResponse(url, userAgent) {
         headersObj['content-disposition'] = sanitizedCD;
     }
     // 获取响应体的文本内容
-    const textData = await response.text();
+    let textData = await response.text();
+    console.log(`[${fetchResponse.name}]: Response data length: ${textData.length}`);
+    // console.log(`[${fetchResponse.name}]: Response data: ${textData}`);
 
-    let jsonData;
-    try {
-        jsonData = YAML.parse(textData, { maxAliasCount: -1, merge: true });
-    } catch (e) {
+    let jsonData = {
+        proxies: [],
+        providers: {},
+    };
+    
+    if (isBase64(textData)) {
+        // 如果是 Base64 编码，先解码
+        textData = base64DecodeUtf8(textData);
+        // console.log(`[${fetchResponse.name}]: Response data (decoded): ${textData}`);
+        if(textData.startsWith('trojan://')) {
+            for (const line of textData.split('\n')) {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('trojan://')) {
+                    const clashMetaProxy = transferTrojanToClashMeta(trimmedLine);
+                    if (clashMetaProxy) {
+                        jsonData.proxies.push(clashMetaProxy);
+                    }
+                }
+            }
+        }
+    }
+    else{
         try {
-            jsonData = JSON.parse(textData);
-        } catch (yamlError) {
-            // 若YAML解析也失败，保留原始文本
-            jsonData = textData;
+            jsonData = YAML.parse(textData, { maxAliasCount: -1, merge: true });
+        } catch (e) {
+            try {
+                jsonData = JSON.parse(textData);
+            } catch (yamlError) {
+                // 若YAML解析也失败，保留原始文本
+                jsonData = textData;
+            }
         }
     }
     return {
@@ -122,6 +244,7 @@ export function splitUrlsAndProxies(urls) {
  * @returns {Promise<Object|null>} - 返回模板数据对象，或没有模板时返回 null
  */
 export async function Top_Data(top) {
+    console.log(`[${Top_Data.name}]: Fetching top data from ${top}`);
     return await fetchResponse(top);
 }
 /**
@@ -133,6 +256,7 @@ export async function Rule_Data(rule) {
     if (!rule) {
         throw new Error(`缺少规则模板`);
     }
+    console.log(`[${Rule_Data.name}]: Fetching rule data from ${rule}`);
     return await fetchResponse(rule);
 }
 

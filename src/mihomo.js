@@ -1,11 +1,15 @@
 import * as utils from './utils.js';
 import getMihomo_Proxies_Data from './proxies.js';
 
+import {SOME_CONST_PROXY_JSON_LIST} from './myproxy.js';
+
+
 export async function getmihomo_config(e) {
-    if (!/meta|clash.meta|clash|clashverge|mihomo/i.test(e.userAgent)) {
+    if (!/meta|curl|clash.meta|clash|clashverge|mihomo/i.test(e.userAgent)) {
         throw new Error('不支持的客户端');
     }
     e.urls = utils.splitUrlsAndProxies(e.urls);
+    console.log(`URLs: ${e.urls.join(', ')}`);
     const [Mihomo_Top_Data, Mihomo_Rule_Data, Mihomo_Proxies_Data, Exclude_Package, Exclude_Address] = await Promise.all([
         utils.Top_Data(e.Mihomo_default),
         utils.Rule_Data(e.rule),
@@ -13,6 +17,10 @@ export async function getmihomo_config(e) {
         e.exclude_package ? utils.fetchpackExtract() : null,
         e.exclude_address ? utils.fetchipExtract() : null,
     ]);
+    console.log(`[${getmihomo_config.name}]: Fetched Mihomo Top Data with ${Mihomo_Top_Data?.data ? Object.keys(Mihomo_Top_Data.data).length : 0} keys`);
+    console.log(`[${getmihomo_config.name}]: Fetched Mihomo Rule Data with ${Mihomo_Rule_Data?.data ? Object.keys(Mihomo_Rule_Data.data).length : 0} keys`);
+    console.log(`[${getmihomo_config.name}]: Fetched Mihomo Proxies Data with ${Mihomo_Proxies_Data?.data?.proxies ? Mihomo_Proxies_Data.data.proxies.length : 0} proxies`);
+    Mihomo_Proxies_Data.data.proxies.push(...SOME_CONST_PROXY_JSON_LIST); // Trigger re-indexing if necessary
     e.Exclude_Package = Exclude_Package;
     e.Exclude_Address = Exclude_Address;
     if (!Mihomo_Proxies_Data?.data?.proxies || Mihomo_Proxies_Data?.data?.proxies?.length === 0) throw new Error('节点为空');
