@@ -20,7 +20,9 @@ export async function getmihomo_config(e) {
     console.log(`[${getmihomo_config.name}]: Fetched Mihomo Top Data with ${Mihomo_Top_Data?.data ? Object.keys(Mihomo_Top_Data.data).length : 0} keys`);
     console.log(`[${getmihomo_config.name}]: Fetched Mihomo Rule Data with ${Mihomo_Rule_Data?.data ? Object.keys(Mihomo_Rule_Data.data).length : 0} keys`);
     console.log(`[${getmihomo_config.name}]: Fetched Mihomo Proxies Data with ${Mihomo_Proxies_Data?.data?.proxies ? Mihomo_Proxies_Data.data.proxies.length : 0} proxies`);
-    Mihomo_Proxies_Data.data.proxies.push(...SOME_CONST_PROXY_JSON_LIST); // Trigger re-indexing if necessary
+    if(e.myproxy){
+        Mihomo_Proxies_Data.data.proxies.push(...SOME_CONST_PROXY_JSON_LIST); // Trigger re-indexing if necessary
+    }
     e.Exclude_Package = Exclude_Package;
     e.Exclude_Address = Exclude_Address;
     if (!Mihomo_Proxies_Data?.data?.proxies || Mihomo_Proxies_Data?.data?.proxies?.length === 0) throw new Error('节点为空');

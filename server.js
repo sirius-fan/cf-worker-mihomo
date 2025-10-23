@@ -51,6 +51,7 @@ app.get('/', async (req, res) => {
             tailscale: url.searchParams.get('tailscale') === 'true',
             tun: url.searchParams.get('tun') === 'true',
             adgdns: url.searchParams.get('adgdns') === 'true',
+            myproxy: url.searchParams.get('myproxy') === 'true',
             IMG: config.IMG,
             sub: config.SUB,
             Mihomo_default: config.MIHOMOTOP,
